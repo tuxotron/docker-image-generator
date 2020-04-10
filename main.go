@@ -163,7 +163,7 @@ type args struct {
 	Category   []string `arg:"-c" help:"List of categories separated by blank spaces"`
 	Image      string   `arg:"-i" help:"Image name in lowercase"`
 	Dockerfile bool     `arg:"-d" help:"Prints out the Dockerfile "`
-	List       bool     `arg:"-l" help:"List the available tools"`
+	List       bool     `arg:"-l" help:"List the available tools and categories"`
 }
 
 func (args) Description() string {
@@ -218,13 +218,23 @@ func main() {
 	}
 
 	if args.List {
+		categories := make(map[string]struct{})
 		keys := make([]string, 0, len(toolsDb))
-		for k, _ := range toolsDb {
+
+		for k, v := range toolsDb {
 			keys = append(keys, k)
+			categories[v.Default.Category] = struct{}{}
 		}
 		sort.Strings(keys)
+
+		fmt.Println(Green("[*] Tools"))
 		for _, k := range keys {
-			fmt.Printf("%s\n", k)
+			fmt.Println(Yellow("  [-] ", k))
+		}
+
+		fmt.Println(Green("[*] Categories"))
+		for k, _ := range categories {
+			fmt.Println(Yellow("  [-] ", k))
 		}
 
 		os.Exit(0)
