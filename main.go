@@ -8,8 +8,8 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/spf13/viper"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -33,8 +33,6 @@ func filenameWithoutExtension(fn string) string {
 
 func loadTools(toolsDb map[string]*config) {
 	myviper := viper.New()
-	//myviper.SetConfigType("ini")   // REQUIRED if the config file does not have the extension in the name
-
 	directory := "tools"
 	myviper.AddConfigPath(directory)
 
@@ -79,16 +77,7 @@ func createDockerImage(dockerContext *bytes.Reader, imageName string) {
 	}
 
 	defer imageBuildResponse.Body.Close()
-	_, err = io.Copy(os.Stdout, imageBuildResponse.Body)
-	if err != nil {
-		log.Fatal(err, " :unable to read image build response")
-	}
-
-	//reader, err := cli.ImagePull(ctx, "docker.io/library/ubuntu:18.04", types.ImagePullOptions{})
-	//if err != nil {
-	//	panic(err)
-	//}
-	//io.Copy(os.Stdout, reader)
+	jsonmessage.DisplayJSONMessagesStream(imageBuildResponse.Body, os.Stdout, os.Stdout.Fd(), true, nil)
 
 }
 
@@ -96,7 +85,12 @@ type commands struct {
 	List []string
 }
 
-func generateDockerfile(cmds *commands) (string, error) {
+func generateDockerfile(toolSet map[string]*config) (string, error) {
+
+	cmds := commands{}
+	for _, v := range toolSet {
+		cmds.List = append(cmds.List, v.Default.Command)
+	}
 
 	t := template.New("Dockerfile.template")
 	t, err := t.ParseFiles("Dockerfile.template")
@@ -113,20 +107,31 @@ func generateDockerfile(cmds *commands) (string, error) {
 	return tpl.String(), nil
 }
 
-func getCommandList(tools []string, metapackages []string, toolsDb map[string]*config) commands {
+func getCommandList(tools []string, categories []string, toolsDb map[string]*config) map[string]*config {
 
-	cmds := commands{}
+	toolSet := make(map[string]*config)
 
-	for _, tool := range tools {
-		if val, ok := toolsDb[tool]; ok {
-			l := append(cmds.List, val.Default.Command)
-			cmds.List = l
-		} else {
-			fmt.Println("[*] " + tool + " is not in the available tools")
+	for _, category := range categories {
+		for k, v := range toolsDb {
+			if category == "all" || category == v.Default.Category {
+				toolSet[k] = v
+				fmt.Println(Green("[*] Adding " + k))
+			}
 		}
 	}
 
-	return cmds
+	for _, tool := range tools {
+		if val, ok := toolsDb[tool]; ok {
+			if _, ok := toolSet[tool]; !ok { // Check if the tool has been already added by a metapackage
+				toolSet[tool] = val
+				fmt.Println(Green("[*] Adding " + tool))
+			}
+		} else {
+			fmt.Println(Red("[x] " + tool + " is not in the available tools"))
+		}
+	}
+
+	return toolSet
 }
 
 func createDockerContext(dockerfile []byte) (*bytes.Reader, error) {
@@ -154,15 +159,29 @@ func createDockerContext(dockerfile []byte) (*bytes.Reader, error) {
 }
 
 type args struct {
-	Tools        []string `arg:"-t" help:"List of tools separated by blank spaces"`
-	Metapackages []string `arg:"-m" help:"List of metapackages separated by blank spaces"`
-	Image        string   `arg:"-i" help:"Image name"`
-	Dockerfile   bool     `arg:"-d" help:"Prints out the Dockerfile "`
-	List         bool     `arg:"-l" help:"List the available tools"`
+	Tools      []string `arg:"-t" help:"List of tools separated by blank spaces"`
+	Category   []string `arg:"-c" help:"List of categories separated by blank spaces"`
+	Image      string   `arg:"-i" help:"Image name in lowercase"`
+	Dockerfile bool     `arg:"-d" help:"Prints out the Dockerfile "`
+	List       bool     `arg:"-l" help:"List the available tools"`
 }
 
 func (args) Description() string {
 	return "This tool creates a customized docker image with the tools you need\n"
+}
+
+var (
+	Red    = Color("\033[1;31m%s\033[0m")
+	Green  = Color("\033[1;32m%s\033[0m")
+	Yellow = Color("\033[1;33m%s\033[0m")
+)
+
+func Color(colorString string) func(...interface{}) string {
+	sprint := func(args ...interface{}) string {
+		return fmt.Sprintf(colorString,
+			fmt.Sprint(args...))
+	}
+	return sprint
 }
 
 func main() {
@@ -172,10 +191,10 @@ func main() {
 
 	parser := arg.MustParse(&args)
 	loadTools(toolsDb)
-	cmds := getCommandList(args.Tools, args.Metapackages, toolsDb)
+	toolSet := getCommandList(args.Tools, args.Category, toolsDb)
 
 	if args.Dockerfile {
-		if dockerfile, err := generateDockerfile(&cmds); err != nil {
+		if dockerfile, err := generateDockerfile(toolSet); err != nil {
 			panic(err)
 		} else {
 			fmt.Println("\n" + dockerfile)
@@ -184,7 +203,7 @@ func main() {
 	}
 
 	if len(args.Image) > 0 {
-		dockerfile, err := generateDockerfile(&cmds)
+		dockerfile, err := generateDockerfile(toolSet)
 		if err != nil {
 			panic(err)
 		}
@@ -210,7 +229,5 @@ func main() {
 
 		os.Exit(0)
 	}
-
- 	parser.WriteHelp(os.Stdout)
-
+	parser.WriteHelp(os.Stdout)
 }

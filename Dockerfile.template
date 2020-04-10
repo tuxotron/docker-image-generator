@@ -1,16 +1,12 @@
 FROM ubuntu:18.04
 
 RUN apt update && \
-    apt install -y software-properties-common && \
+    apt install -y software-properties-common git curl p7zip-full locales && \
     add-apt-repository -y ppa:longsleep/golang-backports && \
     apt update && \
-    apt install -y git && \
-    apt install -y curl && \
-    apt install -y p7zip-full && \
-    {{ with .List }} {{ range . }}
-    {{ . }} && \{{ end }} {{ end }}
-    apt install -y locales && \
-    rm -rf /var/lib/apt/lists/* && \
     localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
 ENV LANG en_US.utf8
+
+RUN {{ with .List }} {{ range . }} {{ . }} && \ {{ printf "\n" }} {{ end }} {{ end }} rm -rf /var/lib/apt/lists/*
+
