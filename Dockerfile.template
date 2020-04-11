@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
 
 RUN apt update && \
-    apt install -y software-properties-common git curl p7zip-full locales && \
+    apt install -y software-properties-common git curl p7zip-full wget whois locales && \
     add-apt-repository -y ppa:longsleep/golang-backports && \
     apt update && \
     localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
@@ -9,4 +9,3 @@ RUN apt update && \
 ENV LANG en_US.utf8
 
 RUN {{ with .List }} {{ range . }} {{ . }} && \ {{ printf "\n" }} {{ end }} {{ end }} rm -rf /var/lib/apt/lists/*
-
