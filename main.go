@@ -24,6 +24,7 @@ type config struct {
 		Name     string `mapstructure:"name"`
 		Command  string `mapstructure:"command"`
 		Category string `mapstructure:"category"`
+		Comment  string `mapstructure:"comment"`
 	}
 }
 
@@ -115,7 +116,7 @@ func getCommandList(tools []string, categories []string, toolsDb map[string]*con
 		for k, v := range toolsDb {
 			if category == "all" || category == v.Default.Category {
 				toolSet[k] = v
-				fmt.Println(Green("[*] Adding " + k))
+				//fmt.Println(Green("[*] Adding " + k))
 			}
 		}
 	}
@@ -124,10 +125,11 @@ func getCommandList(tools []string, categories []string, toolsDb map[string]*con
 		if val, ok := toolsDb[tool]; ok {
 			if _, ok := toolSet[tool]; !ok { // Check if the tool has been already added by a metapackage
 				toolSet[tool] = val
-				fmt.Println(Green("[*] Adding " + tool))
+				//fmt.Println(Green("[*] Adding " + tool))
 			}
 		} else {
 			fmt.Println(Red("[x] " + tool + " is not in the available tools"))
+			os.Exit(1)
 		}
 	}
 
@@ -214,6 +216,15 @@ func main() {
 		}
 
 		createDockerImage(dockerContext, strings.ToLower(args.Image))
+
+		fmt.Println(Green("\nTools added to the image:"))
+		for _, v := range toolSet {
+			if len(v.Default.Comment) > 0 {
+				fmt.Println(Yellow("  [-] " + v.Default.Name + ": " + v.Default.Comment))
+			} else {
+				fmt.Println(Green("  [-] " + v.Default.Name))
+			}
+		}
 		os.Exit(0)
 	}
 
