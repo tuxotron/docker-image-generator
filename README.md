@@ -35,12 +35,15 @@ Clone this repository and build the binary:
 * List the tools available alphabetically:
 
         ./doig -l
-        amass
-        anonsurf
-        cadaver
-        dirb
-        dnsrecon
-        gobuster
+        [*] Tools
+          [-] altdns
+          [-] amass
+          [-] anonsurf
+        ...
+        [*] Categories
+          [-] reversing
+          [-] exploitation
+          [-] osint
         ...
         
 * Prints out a Dockerfile with the tools of your choice:
