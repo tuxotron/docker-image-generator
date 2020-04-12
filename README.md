@@ -17,17 +17,17 @@ Clone this repository and build the binary:
     ./doig
     This tool creates a customized docker image with the tools you need
     
-    Usage: doig [--tools TOOLS] [--metapackages METAPACKAGES] [--image IMAGE] [--dockerfile] [--list]
+    Usage: doig [--tools TOOLS] [--category CATEGORY] [--image IMAGE] [--dockerfile] [--list]
     
     Options:
       --tools TOOLS, -t TOOLS
                              List of tools separated by blank spaces
-      --metapackages METAPACKAGES, -m METAPACKAGES
-                             List of metapackages separated by blank spaces
+      --category CATEGORY, -c CATEGORY
+                             List of categories separated by blank spaces
       --image IMAGE, -i IMAGE
-                             Image name
+                             Image name in lowercase
       --dockerfile, -d       Prints out the Dockerfile
-      --list, -l             List the available tools
+      --list, -l             List the available tools and categories
       --help, -h             display this help and exit
       
 ## Examples

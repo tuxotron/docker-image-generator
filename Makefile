@@ -10,7 +10,7 @@ BINARY=doig
 VERSION=0.1
 BUILD=`git rev-parse HEAD`
 PLATFORMS=darwin linux windows
-ARCHITECTURES=386 amd64
+ARCHITECTURES=amd64 #386
 
 # Setup linker flags option for build that interoperate with variable names in src code
 LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.Build=${BUILD}"
