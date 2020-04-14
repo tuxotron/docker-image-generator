@@ -25,10 +25,9 @@ jobs:
     - uses: actions/checkout@v2
       
     - name: Zip the tools directory
-      run: zip tools.zip tools Dockerfile.template
+      run: zip -r tools.zip tools Dockerfile.template
 
-    # Runs a set of commands using the runners shell
-    - name: Run a multi-line script
+    - name: List files
       run: ls -l
 
     - name: Create Release
