@@ -136,26 +136,52 @@ func getCommandList(tools []string, categories []string, toolsDb map[string]*con
 	return toolSet
 }
 
-func createDockerContext(dockerfile []byte) (*bytes.Reader, error) {
+func createDockerContext(dockerfile []byte, toolSet map[string]*config) (*bytes.Reader, error) {
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	defer tw.Close()
 
-	tarHeader := &tar.Header{
+	dockerfileHeader := &tar.Header{
 		Name: "Dockerfile",
 		Size: int64(len(dockerfile)),
 	}
-	err := tw.WriteHeader(tarHeader)
+	err := tw.WriteHeader(dockerfileHeader)
 	if err != nil {
-		log.Fatal(err, " :unable to write tar header")
+		log.Fatal(err, " :unable to write dockerfile tar header")
 		return nil, err
 	}
+
 	_, err = tw.Write(dockerfile)
 	if err != nil {
-		log.Fatal(err, " :unable to write tar body")
+		log.Fatal(err, " :unable to write tar dockerfile")
 		return nil, err
 	}
+
+	if len(toolSet) > 0 {
+		var toolList string
+		for k, _ := range toolSet {
+			toolList = toolList + k + "\n"
+		}
+
+		toolsHeader := &tar.Header{
+			Name: "tools.txt",
+			Size: int64(len(toolList)),
+		}
+
+		err = tw.WriteHeader(toolsHeader)
+		if err != nil {
+			log.Fatal(err, " :unable to write tools.txt tar header")
+			return nil, err
+		}
+
+		_, err = tw.Write([]byte(toolList))
+		if err != nil {
+			log.Fatal(err, " :unable to write tar tools.txt")
+			return nil, err
+		}
+	}
+
 	return bytes.NewReader(buf.Bytes()), nil
 
 }
@@ -210,7 +236,12 @@ func main() {
 			panic(err)
 		}
 
-		dockerContext, err := createDockerContext([]byte(dockerfile))
+		if len(toolSet) > 0 {
+			// Copy into the image the file with the tools included in the image
+			dockerfile = dockerfile + "\nCOPY tools.txt ."
+		}
+
+		dockerContext, err := createDockerContext([]byte(dockerfile), toolSet)
 		if err != nil {
 			panic(err)
 		}
