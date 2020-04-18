@@ -14,5 +14,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/spf13/viper v1.6.2
+	github.com/stretchr/testify v1.2.2
 	gopkg.in/ini.v1 v1.55.0 // indirect
 )
