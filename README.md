@@ -88,7 +88,7 @@ This creates a docker image called `mytools`. Now you can just get shell inside 
         docker run -it --rm mytools
         root@dff16ee1f45c:/opt#
 
-By default we'll in /opt directory. Inside this directory you will find a file called tools.txt (if we added any tools when creating the image), which contains the list of tools added to the image.
+By default we'll be in /opt directory. Inside this directory you will find a file called tools.txt (if we added any tools when creating the image), which contains the list of the tools added to the image.
         
 Or run a tool directly without getting a shell:
 
