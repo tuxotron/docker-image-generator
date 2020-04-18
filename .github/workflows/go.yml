@@ -2,10 +2,10 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches: [ develop ]
     paths-ignore: [ tools/** ]
   pull_request:
-    branches: [ master ]
+    branches: [ develop ]
     paths-ignore: [ tools/** ]
 
 jobs:
