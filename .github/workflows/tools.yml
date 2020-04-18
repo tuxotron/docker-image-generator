@@ -7,10 +7,8 @@ name: Tools
 on:
   push:
     branches: [ master ]
-    paths: 'tools/**'
   pull_request:
     branches: [ master ]
-    paths: 'tools/**'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
