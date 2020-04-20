@@ -11,5 +11,6 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/spf13/viper v1.6.2
+	github.com/zricethezav/gitleaks/v4 v4.1.1 // indirect
 	gopkg.in/ini.v1 v1.55.0 // indirect
 )
