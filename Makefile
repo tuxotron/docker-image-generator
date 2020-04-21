@@ -7,7 +7,7 @@ K := $(foreach exec,$(EXECUTABLES),\
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 BINARY=doig
-VERSION=0.1
+VERSION=0.2
 BUILD=`git rev-parse HEAD`
 PLATFORMS=darwin linux windows
 ARCHITECTURES=amd64 #386
@@ -22,28 +22,9 @@ all: clean build_all install
 build:
 	go build ${LDFLAGS} -o ${BINARY}
 
-release: build
-	mkdir ${BINARY}-${VERSION}
-	mv ${BINARY} ${BINARY}-${VERSION}/
-	cp Dockerfile.template ${BINARY}-${VERSION}/
-	cp -R tools ${BINARY}-${VERSION}/
-	tar czvf  ${BINARY}-${VERSION}.tgz ${BINARY}-${VERSION}
-	rm -rf ${BINARY}-${VERSION}
-
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
 	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
-
-release_all: build_all
-	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); \
-	mkdir $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION); \
-	mv $(BINARY)-$(GOOS)-$(GOARCH) $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION)/; \
-	cp Dockerfile.template $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION)/; \
-	cp -R tools $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION)/; \
-	tar czvf $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION).tgz \
-	$(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION) Dockerfile.template tools; \
-	rm -rf $(BINARY)-$(GOOS)-$(GOARCH)-$(VERSION))))
 
 install:
 	go install ${LDFLAGS}

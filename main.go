@@ -1,122 +1,33 @@
 package main
 
 import (
-	"archive/tar"
-	"bytes"
-	"context"
+	"errors"
 	"fmt"
 	"github.com/alexflint/go-arg"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/spf13/viper"
 	"log"
 	"os"
-	"path"
-	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
 )
 
-type config struct {
-	Default struct {
-		Name     string `mapstructure:"name"`
-		Command  string `mapstructure:"command"`
-		Category string `mapstructure:"category"`
-		Comment  string `mapstructure:"comment"`
-	}
-}
-
-func filenameWithoutExtension(fn string) string {
-	return strings.TrimSuffix(fn, path.Ext(fn))
-}
-
-func loadTools(toolsDb map[string]*config) {
-	myviper := viper.New()
-	directory := "tools"
-	myviper.AddConfigPath(directory)
-
-	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
-
-		if filepath.Ext(path) == ".ini" {
-			myviper.SetConfigName(filenameWithoutExtension(info.Name()))
-
-			err = myviper.ReadInConfig()
-			if err != nil {
-				panic(fmt.Errorf("Fatal error config file: %s \n", err))
-			}
-			cfg := new(config)
-			err = myviper.Unmarshal(cfg)
-			if err != nil {
-				panic(fmt.Errorf("Fatal error unmarshaling config file: %s \n", err))
-			}
-
-			toolsDb[myviper.GetString("default.name")] = cfg
-		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func createDockerImage(dockerContext *bytes.Reader, imageName string) {
-
-	ctx := context.Background()
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		panic(err)
-	}
-
-	imageBuildResponse, err := cli.ImageBuild(ctx, dockerContext,
-		types.ImageBuildOptions{
-			Tags: []string{imageName},
-		})
-	if err != nil {
-		panic(err)
-	}
-
-	defer imageBuildResponse.Body.Close()
-	jsonmessage.DisplayJSONMessagesStream(imageBuildResponse.Body, os.Stdout, os.Stdout.Fd(), true, nil)
-
-}
+const (
+	TOOLS_DIR_NAME = "tools"
+	TOOLS_URL      = "https://github.com/tuxotron/docker-image-generator/releases/download/tools/tools.zip"
+	APP_NAME       = "doig"
+)
 
 type commands struct {
 	List []string
 }
 
-func generateDockerfile(toolSet map[string]*config) (string, error) {
+func getCommandList(tools []string, categories []string, toolsDb map[string]*Config) (map[string]*Config, error) {
 
-	cmds := commands{}
-	for _, v := range toolSet {
-		cmds.List = append(cmds.List, v.Default.Command)
-	}
-
-	t := template.New("Dockerfile.template")
-	t, err := t.ParseFiles("Dockerfile.template")
-	if err != nil {
-		panic(err)
-	}
-
-	var tpl bytes.Buffer
-	err = t.Execute(&tpl, cmds)
-	if err != nil {
-		panic(err)
-	}
-
-	return tpl.String(), nil
-}
-
-func getCommandList(tools []string, categories []string, toolsDb map[string]*config) map[string]*config {
-
-	toolSet := make(map[string]*config)
+	toolSet := make(map[string]*Config)
 
 	for _, category := range categories {
 		for k, v := range toolsDb {
 			if category == "all" || category == v.Default.Category {
 				toolSet[k] = v
-				//fmt.Println(Green("[*] Adding " + k))
 			}
 		}
 	}
@@ -125,65 +36,13 @@ func getCommandList(tools []string, categories []string, toolsDb map[string]*con
 		if val, ok := toolsDb[tool]; ok {
 			if _, ok := toolSet[tool]; !ok { // Check if the tool has been already added by a metapackage
 				toolSet[tool] = val
-				//fmt.Println(Green("[*] Adding " + tool))
 			}
 		} else {
-			fmt.Println(Red("[x] " + tool + " is not in the available tools"))
-			os.Exit(1)
+			return nil, errors.New("[x] " + tool + " is not in the available tools")
 		}
 	}
 
-	return toolSet
-}
-
-func createDockerContext(dockerfile []byte, toolSet map[string]*config) (*bytes.Reader, error) {
-
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-	defer tw.Close()
-
-	dockerfileHeader := &tar.Header{
-		Name: "Dockerfile",
-		Size: int64(len(dockerfile)),
-	}
-	err := tw.WriteHeader(dockerfileHeader)
-	if err != nil {
-		log.Fatal(err, " :unable to write dockerfile tar header")
-		return nil, err
-	}
-
-	_, err = tw.Write(dockerfile)
-	if err != nil {
-		log.Fatal(err, " :unable to write tar dockerfile")
-		return nil, err
-	}
-
-	if len(toolSet) > 0 {
-		var toolList string
-		for k, _ := range toolSet {
-			toolList = toolList + k + "\n"
-		}
-
-		toolsHeader := &tar.Header{
-			Name: "tools.txt",
-			Size: int64(len(toolList)),
-		}
-
-		err = tw.WriteHeader(toolsHeader)
-		if err != nil {
-			log.Fatal(err, " :unable to write tools.txt tar header")
-			return nil, err
-		}
-
-		_, err = tw.Write([]byte(toolList))
-		if err != nil {
-			log.Fatal(err, " :unable to write tar tools.txt")
-			return nil, err
-		}
-	}
-
-	return bytes.NewReader(buf.Bytes()), nil
-
+	return toolSet, nil
 }
 
 type args struct {
@@ -192,6 +51,7 @@ type args struct {
 	Image      string   `arg:"-i" help:"Image name in lowercase"`
 	Dockerfile bool     `arg:"-d" help:"Prints out the Dockerfile "`
 	List       bool     `arg:"-l" help:"List the available tools and categories"`
+	Update     bool     `arg:"-u" help:"Update tools"`
 }
 
 func (args) Description() string {
@@ -212,17 +72,63 @@ func Color(colorString string) func(...interface{}) string {
 	return sprint
 }
 
+func dirDoesNotExists(dir string) bool {
+	_, err := os.Stat(dir)
+	return os.IsNotExist(err)
+}
+
+func setup(dir string) error {
+
+	fmt.Println(Green("[*] Setting up doig ..."))
+	err := os.MkdirAll(dir+"/"+TOOLS_DIR_NAME, 0755)
+	if err != nil {
+		fmt.Println(Red("[X] Error setting up the tools ..."))
+		return err
+	}
+
+	err = UpdateTools(dir)
+	if err != nil {
+		return err
+	}
+	fmt.Println(Green("[*] doig setup complete ..."))
+
+	return nil
+}
+
 func main() {
 
 	var args args
-	toolsDb := make(map[string]*config)
+	toolsDb := make(map[string]*Config)
+	appDir := getAppDirectory()
+
+	if dirDoesNotExists(appDir) {
+		if err := setup(appDir); err != nil {
+			log.Fatal(Red(err))
+			os.Exit(1)
+		}
+	}
 
 	parser := arg.MustParse(&args)
-	loadTools(toolsDb)
-	toolSet := getCommandList(args.Tools, args.Category, toolsDb)
+	if args.Update {
+		fmt.Println(Green("[*] Updating tools ..."))
+		err := UpdateTools(appDir)
+		if err != nil {
+			fmt.Println(Red("[X] Updating tools FAILED..."))
+			log.Fatal(Red(err))
+		}
+		fmt.Println(Green("[*] Tools updated"))
+	}
+
+	loadTools(toolsDb, appDir+"/"+TOOLS_DIR_NAME)
+
+	toolSet, err := getCommandList(args.Tools, args.Category, toolsDb)
+	if err != nil {
+		fmt.Println(Red(err))
+		os.Exit(1)
+	}
 
 	if args.Dockerfile {
-		if dockerfile, err := generateDockerfile(toolSet); err != nil {
+		if dockerfile, err := generateDockerfile(toolSet, appDir); err != nil {
 			panic(err)
 		} else {
 			fmt.Println("\n" + dockerfile)
@@ -231,9 +137,9 @@ func main() {
 	}
 
 	if len(args.Image) > 0 {
-		dockerfile, err := generateDockerfile(toolSet)
+		dockerfile, err := generateDockerfile(toolSet, appDir)
 		if err != nil {
-			panic(err)
+			log.Fatal(Red(err))
 		}
 
 		if len(toolSet) > 0 {
@@ -243,10 +149,13 @@ func main() {
 
 		dockerContext, err := createDockerContext([]byte(dockerfile), toolSet)
 		if err != nil {
-			panic(err)
+			log.Fatal(Red(err))
 		}
 
-		createDockerImage(dockerContext, strings.ToLower(args.Image))
+		err = createDockerImage(dockerContext, strings.ToLower(args.Image))
+		if err != nil {
+			log.Fatal(Red(err))
+		}
 
 		fmt.Println(Green("\nTools added to the image:"))
 		for _, v := range toolSet {
