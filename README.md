@@ -10,14 +10,20 @@ Clone this repository and build the binary:
 
     git clone https://github.com/tuxotron/docker-image-generator
     cd docker-image-generator
-    go build
+    make build
+    
+Or download the compiled binary for your architecture from the [latest release](https://github.com/tuxotron/docker-image-generator/releases).
+After downloading, give it executable permission and move it somewhere in your PATH:
+
+    chmod +x doig-xxx
+    sudo mv doig-xxx /usr/local/bin/doig
 
 ## Usage
 
     ./doig
     This tool creates a customized docker image with the tools you need
     
-    Usage: doig [--tools TOOLS] [--category CATEGORY] [--image IMAGE] [--dockerfile] [--list]
+    Usage: doig [--tools TOOLS] [--category CATEGORY] [--image IMAGE] [--dockerfile] [--list] [--update]
     
     Options:
       --tools TOOLS, -t TOOLS
@@ -28,9 +34,22 @@ Clone this repository and build the binary:
                              Image name in lowercase
       --dockerfile, -d       Prints out the Dockerfile
       --list, -l             List the available tools and categories
+      --update, -u           Update tools
       --help, -h             display this help and exit
-      
+
+The first time you run the application it will download the lates set of tools and will create a directory called .doig in your home directory. If you want to set up the application in a different directory, just define the environment variable `DOIG_PATH` with the PATH where you want to setup *doig*.
+
 ## Examples
+
+* To update the tools:
+
+        ./doig -u
+        [*] Updating tools ...
+        [*] Updating tools ...
+        [*] Tools updated
+        ...
+        ...
+    
 
 * List the tools available alphabetically:
 
@@ -114,6 +133,6 @@ This would create an image with all tools:
         
 ## TO DO
 
-This is in early stage, however it is functional. There are things to fix, to cleanup, improve and to add.
+I'm actively working on fixes, cleanup, improvements, etc.
 
 I hope you find this tool useful. 
