@@ -12,7 +12,7 @@ import (
 	"text/template"
 )
 
-func generateDockerfile(toolSet map[string]*Config) (string, error) {
+func generateDockerfile(toolSet map[string]*Config, appDir string) (string, error) {
 
 	cmds := commands{}
 	for _, v := range toolSet {
@@ -20,7 +20,7 @@ func generateDockerfile(toolSet map[string]*Config) (string, error) {
 	}
 
 	t := template.New("Dockerfile.template")
-	t, err := t.ParseFiles("Dockerfile.template")
+	t, err := t.ParseFiles(appDir + "/Dockerfile.template")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func createDockerContext(dockerfile []byte, toolSet map[string]*Config) (*bytes.
 
 	if len(toolSet) > 0 {
 		var toolList string
-		for k, _ := range toolSet {
+		for k := range toolSet {
 			toolList = toolList + k + "\n"
 		}
 

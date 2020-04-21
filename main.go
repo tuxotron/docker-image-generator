@@ -1,25 +1,19 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/alexflint/go-arg"
-	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
 
 const (
 	TOOLS_DIR_NAME = "tools"
-	TOOLS_URL = "https://github.com/tuxotron/docker-image-generator/releases/download/tools/tools.zip"
-	APP_NAME = "doig"
+	TOOLS_URL      = "https://github.com/tuxotron/docker-image-generator/releases/download/tools/tools.zip"
+	APP_NAME       = "doig"
 )
 
 type commands struct {
@@ -83,85 +77,33 @@ func dirDoesNotExists(dir string) bool {
 	return os.IsNotExist(err)
 }
 
-func DownloadFile(url string, dir string) error {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	r, err := zip.NewReader(bytes.NewReader(body), resp.ContentLength)
-	if err != nil {
-		return err
-	}
-	for _, zf := range r.File {
-		if zf.FileInfo().IsDir() {
-			err := os.MkdirAll(filepath.Join(dir, zf.Name), os.ModePerm)
-			if err != nil {
-				fmt.Println(Red("[X] Error creating " + filepath.Join(dir, zf.Name)))
-				return err
-			}
-			continue
-		}
-
-		dst, err := os.Create(dir + "/" + zf.Name)
-		if err != nil {
-			fmt.Println(Red("[X] Error creating " + dir + "/" + zf.Name))
-			return err
-		}
-		defer dst.Close()
-		src, err := zf.Open()
-		if err != nil {
-			return err
-		}
-		defer src.Close()
-
-		_, err = io.Copy(dst, src)
-		if err != nil {
-			return nil
-		}
-	}
-
-	return nil
-
-}
-
 func setup(dir string) error {
 
 	fmt.Println(Green("[*] Setting up doig ..."))
-	err := os.MkdirAll(dir + "/" + TOOLS_DIR_NAME, 0755)
+	err := os.MkdirAll(dir+"/"+TOOLS_DIR_NAME, 0755)
 	if err != nil {
 		fmt.Println(Red("[X] Error setting up the tools ..."))
 		return err
 	}
 
-	fmt.Println(Green("[*] Updating tools ..."))
-	err = DownloadFile(TOOLS_URL, dir)
+	err = UpdateTools(dir)
 	if err != nil {
 		return err
 	}
-
 	fmt.Println(Green("[*] doig setup complete ..."))
 
 	return nil
-
 }
 
 func main() {
 
 	var args args
 	toolsDb := make(map[string]*Config)
-	directory := getAppDirectory()
+	appDir := getAppDirectory()
 
-	if dirDoesNotExists(directory) {
-		if err := setup(directory); err != nil {
-			fmt.Println(Red(err))
+	if dirDoesNotExists(appDir) {
+		if err := setup(appDir); err != nil {
+			log.Fatal(Red(err))
 			os.Exit(1)
 		}
 	}
@@ -169,15 +111,15 @@ func main() {
 	parser := arg.MustParse(&args)
 	if args.Update {
 		fmt.Println(Green("[*] Updating tools ..."))
-		err := DownloadFile(TOOLS_URL, directory)
+		err := UpdateTools(appDir)
 		if err != nil {
 			fmt.Println(Red("[X] Updating tools FAILED..."))
-			log.Fatal(err)
+			log.Fatal(Red(err))
 		}
 		fmt.Println(Green("[*] Tools updated"))
 	}
 
-	loadTools(toolsDb, directory + "/" + TOOLS_DIR_NAME)
+	loadTools(toolsDb, appDir+"/"+TOOLS_DIR_NAME)
 
 	toolSet, err := getCommandList(args.Tools, args.Category, toolsDb)
 	if err != nil {
@@ -185,9 +127,8 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	if args.Dockerfile {
-		if dockerfile, err := generateDockerfile(toolSet); err != nil {
+		if dockerfile, err := generateDockerfile(toolSet, appDir); err != nil {
 			panic(err)
 		} else {
 			fmt.Println("\n" + dockerfile)
@@ -196,9 +137,9 @@ func main() {
 	}
 
 	if len(args.Image) > 0 {
-		dockerfile, err := generateDockerfile(toolSet)
+		dockerfile, err := generateDockerfile(toolSet, appDir)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(Red(err))
 		}
 
 		if len(toolSet) > 0 {
@@ -208,10 +149,13 @@ func main() {
 
 		dockerContext, err := createDockerContext([]byte(dockerfile), toolSet)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(Red(err))
 		}
 
-		createDockerImage(dockerContext, strings.ToLower(args.Image))
+		err = createDockerImage(dockerContext, strings.ToLower(args.Image))
+		if err != nil {
+			log.Fatal(Red(err))
+		}
 
 		fmt.Println(Green("\nTools added to the image:"))
 		for _, v := range toolSet {
