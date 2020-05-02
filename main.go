@@ -110,7 +110,6 @@ func main() {
 
 	parser := arg.MustParse(&args)
 	if args.Update {
-		fmt.Println(Green("[*] Updating tools ..."))
 		err := UpdateTools(appDir)
 		if err != nil {
 			fmt.Println(Red("[X] Updating tools FAILED..."))
