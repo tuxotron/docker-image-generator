@@ -35,6 +35,8 @@ jobs:
       uses: tubone24/update_release@v1.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        release_name: Tools
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
