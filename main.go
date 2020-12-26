@@ -38,7 +38,7 @@ func getCommandList(tools []string, categories []string, toolsDb map[string]*Con
 				toolSet[tool] = val
 			}
 		} else {
-			return nil, errors.New("[x] " + tool + " is not in the available tools")
+			return nil, errors.New("[x] " + tool + " is not in the available tools or it is disabled")
 		}
 	}
 
