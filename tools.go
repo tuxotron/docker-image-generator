@@ -21,6 +21,7 @@ type Config struct {
 		Command  string `mapstructure:"command"`
 		Category string `mapstructure:"category"`
 		Comment  string `mapstructure:"comment"`
+		Status   string `mapstructure:"status"`
 	}
 }
 
@@ -61,7 +62,10 @@ func loadTools(toolsDb map[string]*Config, directory string) {
 				log.Fatal(fmt.Errorf("Fatal error unmarshaling config file: %s \n", err))
 			}
 
-			toolsDb[myviper.GetString("default.name")] = cfg
+			if (cfg.Default.Status != "disabled") {
+				toolsDb[myviper.GetString("default.name")] = cfg
+			}
+
 		}
 		return nil
 	})
