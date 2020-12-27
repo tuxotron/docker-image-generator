@@ -20,30 +20,24 @@ jobs:
     - name: Zip tools directory
       run: zip -r tools.zip Dockerfile.template tools
 
-#    - name: Create Release
-#      id: create_release
-#      uses: actions/create-release@v1
-#      env:
-#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#      with:
-#        tag_name: tools
-#        release_name: Tools
-#        draft: false
-#        prerelease: false
-#     - name: update release
-#       id: update_release
-#       uses: tubone24/update_release@v1.0
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         release_name: Tools
+   - name: Create Release
+     id: create_release
+     uses: actions/create-release@v1
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     with:
+       tag_name: tools
+       release_name: Tools
+       draft: false
+       prerelease: false
+
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: https://api.github.com/repos/tuxotron/docker-image-generator/releases/assets/29980623
+        upload_url: ${{ steps.update_release.outputs.upload_url }}
         asset_path: ./tools.zip
         asset_name: tools.zip
         asset_content_type: application/zip
